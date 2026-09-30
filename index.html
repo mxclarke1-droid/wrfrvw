@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Santa Visibility Test</title>
+
+<style>
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#55aaff;
+}
+
+#info{
+    position:fixed;
+    top:15px;
+    left:15px;
+    z-index:100;
+    padding:14px 18px;
+    background:rgba(0,0,0,.85);
+    color:white;
+    font-family:Arial,sans-serif;
+    font-size:16px;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="info">🎅 Loading Santa...</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+
+const scene = new THREE.Scene();
+
+scene.background =
+    new THREE.Color(0x55aaff);
+
+
+// CAMERA
+
+const camera =
+    new THREE.PerspectiveCamera(
+        50,
+        window.innerWidth /
+        window.innerHeight,
+        0.001,
+        1000000
+    );
+
+camera.position.set(
+    0,
+    0,
+    10
+);
+
+
+// RENDERER
+
+const renderer =
+    new THREE.WebGLRenderer({
+        antialias:true
+    });
+
+renderer.setSize(
+    window.innerWidth,
+    window.innerHeight
+);
+
+renderer.setPixelRatio(
+    Math.min(
+        window.devicePixelRatio,
+        2
+    )
+);
+
+renderer.outputEncoding =
+    THREE.sRGBEncoding;
+
+renderer.setClearColor(
+    0x55aaff,
+    1
+);
+
+document.body.appendChild(
+    renderer.domElement
+);
+
+
+// LIGHTS
+
+scene.add(
+    new THREE.AmbientLight(
+        0xffffff,
+        10
+    )
+);
+
+const light =
+    new THREE.DirectionalLight(
+        0xffffff,
+        10
+    );
+
+light.position.set(
+    10,
+    20,
+    20
+);
+
+scene.add(light);
+
+
+// TEST CUBE
+
+const cubeGeometry =
+    new THREE.BoxGeometry(
+        2,
+        2,
+        2
+    );
+
+const cubeMaterial =
+    new THREE.MeshBasicMaterial({
+        color:0xff0000
+    });
+
+const testCube =
+    new THREE.Mesh(
+        cubeGeometry,
+        cubeMaterial
+    );
+
+testCube.position.set(
+    5,
+    0,
+    0
+);
+
+scene.add(testCube);
+
+
+// LOAD SANTA
+
+const loader =
+    new THREE.GLTFLoader();
+
+loader.load(
+
+    "./santa.gltf",
+
+    function(gltf){
+
+        console.log(
+            "🎅 SANTA FILE LOADED"
+        );
+
+        const santa =
+            gltf.scene;
+
+        let meshCount = 0;
+
+
+        // FIND MODEL SIZE
+
+        let originalBox =
+            new THREE.Box3()
+                .setFromObject(santa);
+
+        let originalSize =
+            new THREE.Vector3();
+
+        originalBox.getSize(
+            originalSize
+        );
+
+        console.log(
+            "ORIGINAL SIZE:",
+            originalSize
+        );
+
+
+        // CENTER MODEL
+
+        let center =
+            new THREE.Vector3();
+
+        originalBox.getCenter(
+            center
+        );
+
+
+        santa.position.sub(
+            center
+        );
+
+
+        // SCALE
+
+        const biggest =
+            Math.max(
+                originalSize.x,
+                originalSize.y,
+                originalSize.z
+            );
+
+
+        let scale =
+            5 / biggest;
+
+
+        if(
+            !isFinite(scale) ||
+            scale <= 0
+        ){
+            scale = 1;
+        }
+
+
+        santa.scale.set(
+            scale,
+            scale,
+            scale
+        );
+
+
+        console.log(
+            "SCALE:",
+            scale
+        );
+
+
+        // MAKE EVERY MESH VISIBLE
+
+        santa.traverse(
+            function(object){
+
+                if(object.isMesh){
+
+                    meshCount++;
+
+                    object.visible =
+                        true;
+
+                    object.frustumCulled =
+                        false;
+
+
+                    if(object.material){
+
+                        const materials =
+                            Array.isArray(
+                                object.material
+                            )
+                            ?
+                            object.material
+                            :
+                            [object.material];
+
+
+                        materials.forEach(
+                            function(material){
+
+                                material.visible =
+                                    true;
+
+                                material.transparent =
+                                    false;
+
+                                material.opacity =
+                                    1;
+
+                                material.depthWrite =
+                                    true;
+
+                                material.depthTest =
+                                    true;
+
+                                material.side =
+                                    THREE.DoubleSide;
+
+                                material.needsUpdate =
+                                    true;
+
+                            }
+                        );
+                    }
+                }
+            }
+        );
+
+
+        console.log(
+            "MESHES FOUND:",
+            meshCount
+        );
+
+
+        // PUT SANTA DIRECTLY IN FRONT
+        // OF THE CAMERA
+
+        santa.position.set(
+            0,
+            0,
+            0
+        );
+
+
+        scene.add(
+            santa
+        );
+
+
+        // BIG WHITE TEST LIGHT
+
+        const pointLight =
+            new THREE.PointLight(
+                0xffffff,
+                20,
+                100
+            );
+
+        pointLight.position.set(
+            0,
+            5,
+            5
+        );
+
+        scene.add(
+            pointLight
+        );
+
+
+        document.getElementById(
+            "info"
+        ).textContent =
+            "🎅 Santa loaded! " +
+            meshCount +
+            " meshes";
+
+
+        console.log(
+            "🎅 SANTA ADDED TO SCENE"
+        );
+
+    },
+
+
+    function(xhr){
+
+        if(xhr.total){
+
+            const percent =
+                Math.round(
+                    xhr.loaded /
+                    xhr.total *
+                    100
+                );
+
+            document.getElementById(
+                "info"
+            ).textContent =
+                "🛷 Loading Santa... " +
+                percent +
+                "%";
+        }
+
+    },
+
+
+    function(error){
+
+        console.error(
+            "❌ SANTA ERROR:",
+            error
+        );
+
+        document.getElementById(
+            "info"
+        ).textContent =
+            "❌ Santa failed to load";
+    }
+
+);
+
+
+// ANIMATION
+
+function animate(){
+
+    requestAnimationFrame(
+        animate
+    );
+
+
+    // Slowly rotate the test cube
+    testCube.rotation.x += 0.01;
+    testCube.rotation.y += 0.01;
+
+
+    renderer.render(
+        scene,
+        camera
+    );
+}
+
+animate();
+
+
+// RESIZE
+
+window.addEventListener(
+    "resize",
+    function(){
+
+        camera.aspect =
+            window.innerWidth /
+            window.innerHeight;
+
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(
+            window.innerWidth,
+            window.innerHeight
+        );
+
+    }
+);
+
+</script>
+
+</body>
+</html>
